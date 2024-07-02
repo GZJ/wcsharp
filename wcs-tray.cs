@@ -13,6 +13,9 @@ public static class WindowManager
     [DllImport("user32.dll")]
     static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
     public static string WindowTitle { get; set; }
 
     public static void ToggleWindowState()
@@ -26,11 +29,20 @@ public static class WindowManager
                 WinRestore();
                 WinFocuse();
             }
-            else
+            else if (IsWindowFocused(hWnd))
             {
                 WinMin();
             }
+            else {
+                WinFocuse();
+            }
         }
+    }
+
+    public static bool IsWindowFocused(IntPtr hWnd)
+    {
+        IntPtr foregroundWindowHandle = GetForegroundWindow();
+        return foregroundWindowHandle == hWnd;
     }
 
     public static void WinFocuse()
