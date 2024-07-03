@@ -23,11 +23,11 @@ public static class WindowManager
     const int SW_HIDE = 0;
 
     public static string WindowTitle { get; set; }
-    public static IntPtr CurrentHwnd { get; set; }
+    public static IntPtr PrevHwnd { get; set; }
 
     static WindowManager()
     {
-        UpdateCurrentHwnd();
+        UpdatePrevHwnd();
     }
 
     public static void ToggleWindowState()
@@ -42,16 +42,16 @@ public static class WindowManager
             }
             else 
             {
-                UpdateCurrentHwnd();
+                UpdatePrevHwnd();
                 WinShow(hWnd);
                 WinFocus(hWnd);
             }
         }
     }
 
-    public static void UpdateCurrentHwnd()
+    public static void UpdatePrevHwnd()
     {
-        CurrentHwnd = GetForegroundWindow();
+        PrevHwnd = GetForegroundWindow();
     }
     public static bool IsWindowFocused(IntPtr hWnd)
     {
@@ -66,7 +66,7 @@ public static class WindowManager
 
     public static void WinUnFocus()
     {
-        SetForegroundWindow(CurrentHwnd);
+        SetForegroundWindow(PrevHwnd);
     }
 
     public static void WinHide(IntPtr hWnd)
