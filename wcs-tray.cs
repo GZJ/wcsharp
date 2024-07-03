@@ -7,74 +7,76 @@ using System.Windows.Forms;
 public static class WindowManager
 {
     [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    static extern bool IsIconic(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
     static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
+    [DllImport("user32.dll")]
+    static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    const int SW_SHOW = 5;
+    const int SW_HIDE = 0;
+
     public static string WindowTitle { get; set; }
+    public static IntPtr CurrentHwnd { get; set; }
+
+    static WindowManager()
+    {
+        UpdateCurrentHwnd();
+    }
 
     public static void ToggleWindowState()
     {
         IntPtr hWnd = FindWindow(null, WindowTitle);
         if (hWnd != IntPtr.Zero)
         {
-            bool isMinimized = IsIconic(hWnd);
-            if (isMinimized)
+            if (IsWindowFocused(hWnd))
             {
-                WinRestore();
-                WinFocuse();
+                WinUnFocus();
+                WinHide(hWnd);
             }
-            else if (IsWindowFocused(hWnd))
+            else 
             {
-                WinMin();
-            }
-            else {
-                WinFocuse();
+                UpdateCurrentHwnd();
+                WinShow(hWnd);
+                WinFocus(hWnd);
             }
         }
     }
 
+    public static void UpdateCurrentHwnd()
+    {
+        CurrentHwnd = GetForegroundWindow();
+    }
     public static bool IsWindowFocused(IntPtr hWnd)
     {
         IntPtr foregroundWindowHandle = GetForegroundWindow();
         return foregroundWindowHandle == hWnd;
     }
 
-    public static void WinFocuse()
+    public static void WinFocus(IntPtr hWnd)
     {
-        RunCommand("cmd.exe", $"/c wcs-focuse.exe \"{WindowTitle}\"");
+        SetForegroundWindow(hWnd);
     }
 
-    public static void WinMin()
+    public static void WinUnFocus()
     {
-        RunCommand("cmd.exe", $"/c wcs-min.exe \"{WindowTitle}\"");
+        SetForegroundWindow(CurrentHwnd);
     }
 
-    public static void WinRestore()
+    public static void WinHide(IntPtr hWnd)
     {
-        RunCommand("cmd.exe", $"/c wcs-restore.exe \"{WindowTitle}\"");
+        ShowWindow(hWnd, SW_HIDE);
     }
 
-    public static void RunCommand(string processName, string arguments)
+    public static void WinShow(IntPtr hWnd)
     {
-        ProcessStartInfo startInfo = new ProcessStartInfo(processName, arguments)
-        {
-            CreateNoWindow = true,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-
-        using (Process process = new Process { StartInfo = startInfo })
-        {
-            process.Start();
-            process.WaitForExit();
-        }
+        ShowWindow(hWnd, SW_SHOW);
     }
 }
 
