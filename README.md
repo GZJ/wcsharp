@@ -33,3 +33,14 @@ git clone https://github.com/GZJ/wcsharp.git
 cd wcsharp
 ./build.ps1
 ```
+
+# Usage 
+```
+wcs-min.exe [window title]
+wcs-max.exe [window title]
+
+#or
+
+wcs-hide.exe [window title]
+wcs-tray.exe [window title] "ctrl+alt+e"
+```
