@@ -42,7 +42,11 @@ class Program
     {
         if (hWnd != IntPtr.Zero)
         {
-            SetWindowLong(hWnd, GWL_EXSTYLE, (GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_APPWINDOW) & ~WS_EX_TOOLWINDOW);
+            SetWindowLong(
+                hWnd,
+                GWL_EXSTYLE,
+                (GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_APPWINDOW) & ~WS_EX_TOOLWINDOW
+            );
         }
         else
         {
