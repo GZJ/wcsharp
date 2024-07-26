@@ -23,6 +23,7 @@ public static class WindowManager
     const int SW_HIDE = 0;
 
     public static string WindowTitle { get; set; }
+    public static IntPtr Hwnd { get; set; }
     public static IntPtr PrevHwnd { get; set; }
 
     static WindowManager()
@@ -30,17 +31,30 @@ public static class WindowManager
         UpdatePrevHwnd();
     }
 
+    public static void InitHwnd(string arg)
+    {
+        WindowManager.WindowTitle = arg;
+        if (int.TryParse(WindowManager.WindowTitle, out int handle))
+        {
+            WindowManager.Hwnd = (IntPtr)handle;
+        }
+        else
+        {
+            WindowManager.Hwnd = FindWindow(null, WindowManager.WindowTitle);
+        }
+    }
+
     public static void ToggleWindowState()
     {
-        IntPtr hWnd = FindWindow(null, WindowTitle);
-        if (hWnd != IntPtr.Zero)
+        if (WindowManager.Hwnd != IntPtr.Zero)
         {
+            IntPtr hWnd = WindowManager.Hwnd;
             if (IsWindowFocused(hWnd))
             {
                 WinUnFocus();
                 WinHide(hWnd);
             }
-            else 
+            else
             {
                 UpdatePrevHwnd();
                 WinShow(hWnd);
@@ -53,6 +67,7 @@ public static class WindowManager
     {
         PrevHwnd = GetForegroundWindow();
     }
+
     public static bool IsWindowFocused(IntPtr hWnd)
     {
         IntPtr foregroundWindowHandle = GetForegroundWindow();
@@ -250,10 +265,10 @@ public static class Program
         string[] args = Environment.GetCommandLineArgs();
         if (args.Length < 2)
         {
-            Console.WriteLine("Usage: wcs-tray <WindowTitle> <HotKey>");
+            Console.WriteLine("Usage: wcs-tray <WindowTitle or Hwnd> <HotKey>");
             return;
         }
-        WindowManager.WindowTitle = args[1];
+        WindowManager.InitHwnd(args[1]);
 
         Application.ApplicationExit += OnApplicationExit;
 
@@ -281,4 +296,3 @@ public static class Program
         _trayIconManager.Dispose();
     }
 }
-

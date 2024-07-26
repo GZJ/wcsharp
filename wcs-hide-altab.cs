@@ -20,11 +20,22 @@ class Program
     {
         if (args.Length == 0)
         {
-            Console.WriteLine("Please provide a window title as an argument.");
+            Console.WriteLine("Please provide window title or window handle as argument!");
             return;
         }
 
-        IntPtr hWnd = FindWindow(null, args[0]);
+        string windowTitle = args[0];
+        IntPtr hWnd;
+
+        if (int.TryParse(windowTitle, out int handle))
+        {
+            hWnd = (IntPtr)handle;
+        }
+        else
+        {
+            hWnd = FindWindow(null, windowTitle);
+        }
+
         SetWindowStyle(hWnd);
     }
 

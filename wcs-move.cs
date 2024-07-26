@@ -38,14 +38,23 @@ class Program
             return;
         }
 
-        string windowTitle = args[0];
         if (!int.TryParse(args[1], out int newX) || !int.TryParse(args[2], out int newY))
         {
             Console.WriteLine("Invalid parameters. Ensure that x and y are integers.");
             return;
         }
 
-        IntPtr hWnd = FindWindow(null, windowTitle);
+        string windowTitle = args[0];
+        IntPtr hWnd;
+
+        if (int.TryParse(windowTitle, out int handle))
+        {
+            hWnd = (IntPtr)handle;
+        }
+        else
+        {
+            hWnd = FindWindow(null, windowTitle);
+        }
 
         if (hWnd == IntPtr.Zero)
         {
