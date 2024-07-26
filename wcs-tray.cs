@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Forms;
 
 public static class WindowManager
@@ -19,12 +22,28 @@ public static class WindowManager
     [return: MarshalAs(UnmanagedType.Bool)]
     static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    static extern int GetWindowTextLength(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindow(IntPtr hWnd);
+
     const int SW_SHOW = 5;
     const int SW_HIDE = 0;
 
-    public static string WindowTitle { get; set; }
-    public static IntPtr Hwnd { get; set; }
+    public class WindowInfo
+    {
+        public string Title { get; set; }
+        public IntPtr Handle { get; set; }
+    }
+
+    public static List<WindowInfo> WindowInfos = new List<WindowInfo>();
     public static IntPtr PrevHwnd { get; set; }
+    public static string Args1 { get; set; }
 
     static WindowManager()
     {
@@ -33,32 +52,56 @@ public static class WindowManager
 
     public static void InitHwnd(string arg)
     {
-        WindowManager.WindowTitle = arg;
-        if (int.TryParse(WindowManager.WindowTitle, out int handle))
+        Args1 = arg;
+        string[] titles = arg.Split(',');
+
+        foreach (string title in titles)
         {
-            WindowManager.Hwnd = (IntPtr)handle;
-        }
-        else
-        {
-            WindowManager.Hwnd = FindWindow(null, WindowManager.WindowTitle);
+            if (int.TryParse(title, out int handle))
+            {
+                if (IsWindow((IntPtr)handle))
+                {
+                    string t = GetWindowTitle((IntPtr)handle);
+                    WindowInfos.Add(new WindowInfo { Title = t, Handle = (IntPtr)handle });
+                }
+                else
+                {
+                    WindowInfos.Add(new WindowInfo { Title = "", Handle = IntPtr.Zero });
+                }
+            }
+            else
+            {
+                IntPtr hwnd = FindWindow(null, title);
+                WindowInfos.Add(new WindowInfo { Title = title, Handle = hwnd });
+            }
         }
     }
 
     public static void ToggleWindowState()
     {
-        if (WindowManager.Hwnd != IntPtr.Zero)
+        if (IsWindowFocused())
         {
-            IntPtr hWnd = WindowManager.Hwnd;
-            if (IsWindowFocused(hWnd))
+            WinUnFocus();
+            foreach (var windowInfo in WindowInfos)
             {
-                WinUnFocus();
-                WinHide(hWnd);
+                IntPtr hwnd = windowInfo.Handle;
+                if (hwnd != IntPtr.Zero)
+                {
+                    WinHide(hwnd);
+                }
             }
-            else
+        }
+        else
+        {
+            UpdatePrevHwnd();
+            foreach (var windowInfo in WindowInfos.AsEnumerable().Reverse())
             {
-                UpdatePrevHwnd();
-                WinShow(hWnd);
-                WinFocus(hWnd);
+                IntPtr hwnd = windowInfo.Handle;
+                if (hwnd != IntPtr.Zero)
+                {
+                    WinShow(hwnd);
+                    WinFocus(hwnd);
+                }
             }
         }
     }
@@ -68,10 +111,10 @@ public static class WindowManager
         PrevHwnd = GetForegroundWindow();
     }
 
-    public static bool IsWindowFocused(IntPtr hWnd)
+    public static bool IsWindowFocused()
     {
         IntPtr foregroundWindowHandle = GetForegroundWindow();
-        return foregroundWindowHandle == hWnd;
+        return WindowInfos.Any(wi => wi.Handle == foregroundWindowHandle);
     }
 
     public static void WinFocus(IntPtr hWnd)
@@ -92,6 +135,17 @@ public static class WindowManager
     public static void WinShow(IntPtr hWnd)
     {
         ShowWindow(hWnd, SW_SHOW);
+    }
+
+    static string GetWindowTitle(IntPtr hWnd)
+    {
+        int length = GetWindowTextLength(hWnd);
+        if (length == 0)
+            return string.Empty;
+
+        StringBuilder builder = new StringBuilder(length + 1);
+        GetWindowText(hWnd, builder, builder.Capacity);
+        return builder.ToString();
     }
 }
 
@@ -221,7 +275,7 @@ public class TrayIconManager
 
         trayIcon = new NotifyIcon
         {
-            Text = WindowManager.WindowTitle,
+            Text = WindowManager.Args1,
             Icon = new Icon(SystemIcons.Application, 40, 40),
             ContextMenu = trayMenu,
             Visible = true
