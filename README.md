@@ -36,11 +36,12 @@ cd wcsharp
 
 # Usage 
 ```
-wcs-min.exe [window title]
-wcs-max.exe [window title]
+wcs-min.exe [window title/handle]
+wcs-max.exe [window title/handle]
 
 #or
 
-wcs-hide.exe [window title]
-wcs-tray.exe [window title] "ctrl+alt+e"
+wcs-hide.exe [window title/handle]
+wcs-tray.exe [window title/handle] "ctrl+alt+e"
+wcs-tray.exe "[window title/handle],[window title2/handle2],[window title3/handle3],..." "ctrl+alt+e"
 ```
