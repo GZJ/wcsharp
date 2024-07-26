@@ -18,6 +18,9 @@ class Program
         bool bRepaint
     );
 
+    [DllImport("user32.dll")]
+    static extern bool IsWindow(IntPtr hWnd);
+
     static void Main(string[] args)
     {
         if (args.Length != 5)
@@ -51,7 +54,7 @@ class Program
             hWnd = FindWindow(null, windowTitle);
         }
 
-        if (hWnd == IntPtr.Zero)
+        if (hWnd != IntPtr.Zero && IsWindow(hWnd))
         {
             Console.WriteLine($"Could not find a window with title: {windowTitle}");
             return;

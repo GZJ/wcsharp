@@ -21,6 +21,9 @@ class Program
     [DllImport("user32.dll", SetLastError = true)]
     static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
+    [DllImport("user32.dll")]
+    static extern bool IsWindow(IntPtr hWnd);
+
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT
     {
@@ -56,7 +59,7 @@ class Program
             hWnd = FindWindow(null, windowTitle);
         }
 
-        if (hWnd == IntPtr.Zero)
+        if (hWnd != IntPtr.Zero && IsWindow(hWnd))
         {
             Console.WriteLine($"Could not find a window with title: {windowTitle}");
             return;

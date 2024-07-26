@@ -12,6 +12,9 @@ class Program
     [DllImport("user32.dll", SetLastError = true)]
     static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
+    [DllImport("user32.dll")]
+    static extern bool IsWindow(IntPtr hWnd);
+
     const int GWL_EXSTYLE = -20;
     const int WS_EX_APPWINDOW = 0x00040000;
     const int WS_EX_TOOLWINDOW = 0x00000080;
@@ -41,7 +44,7 @@ class Program
 
     static void SetWindowStyle(IntPtr hWnd)
     {
-        if (hWnd != IntPtr.Zero)
+        if (hWnd != IntPtr.Zero && IsWindow(hWnd))
         {
             SetWindowLong(
                 hWnd,

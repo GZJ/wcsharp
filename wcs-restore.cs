@@ -9,6 +9,9 @@ class Program
     [DllImport("user32.dll")]
     static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
+    [DllImport("user32.dll")]
+    static extern bool IsWindow(IntPtr hWnd);
+
     const int SW_RESTORE = 9;
 
     static void Main(string[] args)
@@ -31,7 +34,7 @@ class Program
             hWnd = FindWindow(null, windowTitle);
         }
 
-        if (hWnd != IntPtr.Zero)
+        if (hWnd != IntPtr.Zero && IsWindow(hWnd))
         {
             ShowWindow(hWnd, SW_RESTORE);
             Console.WriteLine($"Successfully restored window: {windowTitle}");

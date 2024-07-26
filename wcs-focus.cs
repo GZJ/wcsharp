@@ -9,6 +9,9 @@ class Program
     [DllImport("user32.dll")]
     static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
+    [DllImport("user32.dll")]
+    static extern bool IsWindow(IntPtr hWnd);
+
     static void Main(string[] args)
     {
         if (args.Length == 0)
@@ -29,7 +32,7 @@ class Program
             hWnd = FindWindow(null, windowTitle);
         }
 
-        if (hWnd != IntPtr.Zero)
+        if (hWnd != IntPtr.Zero && IsWindow(hWnd))
         {
             SetForegroundWindow(hWnd);
             Console.WriteLine($"Successfully focused on window: {windowTitle}");

@@ -10,6 +10,9 @@ class Program
     [return: MarshalAs(UnmanagedType.Bool)]
     static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+    [DllImport("user32.dll")]
+    static extern bool IsWindow(IntPtr hWnd);
+
     const int SW_SHOW = 5;
 
     static void Main(string[] args)
@@ -32,7 +35,7 @@ class Program
             hWnd = FindWindow(null, windowTitle);
         }
 
-        if (hWnd == IntPtr.Zero)
+        if (hWnd != IntPtr.Zero && IsWindow(hWnd))
         {
             Console.WriteLine("Window not found!");
         }

@@ -9,6 +9,9 @@ class Program
     [DllImport("user32.dll")]
     static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
+    [DllImport("user32.dll")]
+    static extern bool IsWindow(IntPtr hWnd);
+
     const uint WM_CLOSE = 0x0010;
 
     static void Main(string[] args)
@@ -31,7 +34,7 @@ class Program
             hWnd = FindWindow(null, windowTitle);
         }
 
-        if (hWnd != IntPtr.Zero)
+        if (hWnd != IntPtr.Zero && IsWindow(hWnd))
         {
             PostMessage(hWnd, WM_CLOSE, 0, 0);
             Console.WriteLine($"Successfully closed window: {windowTitle}");
