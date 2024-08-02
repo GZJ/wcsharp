@@ -54,7 +54,7 @@ class Program
             hWnd = FindWindow(null, windowTitle);
         }
 
-        if (hWnd != IntPtr.Zero && IsWindow(hWnd))
+        if (hWnd == IntPtr.Zero || !IsWindow(hWnd))
         {
             Console.WriteLine($"Could not find a window with title: {windowTitle}");
             return;
