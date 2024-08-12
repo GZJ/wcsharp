@@ -5,6 +5,8 @@ using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 public static class WindowManager
@@ -32,6 +34,9 @@ public static class WindowManager
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindow(IntPtr hWnd);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
     const int SW_SHOW = 5;
     const int SW_HIDE = 0;
 
@@ -41,6 +46,7 @@ public static class WindowManager
         public IntPtr Handle { get; set; }
     }
 
+    private static CountdownEvent processExitEvent;
     public static List<WindowInfo> WindowInfos = new List<WindowInfo>();
     public static IntPtr PrevHwnd { get; set; }
     public static string Args1 { get; set; }
@@ -75,6 +81,44 @@ public static class WindowManager
                 WindowInfos.Add(new WindowInfo { Title = title, Handle = hwnd });
             }
         }
+    }
+
+    public static void MonitorWindowProcessExit()
+    {
+        int count = 0;
+        foreach (var wi in WindowInfos)
+        {
+            GetWindowThreadProcessId(wi.Handle, out uint processId);
+            Console.WriteLine(
+                $"MonitorWindowProcessExit: Found window with title \"{wi.Title}\", process ID: {processId}"
+            );
+            count += 1;
+            try
+            {
+                Process process = Process.GetProcessById((int)processId);
+                process.EnableRaisingEvents = true;
+                process.Exited += (sender, e) =>
+                {
+                    Console.WriteLine(
+                        $"MonitorWindowProcessExit: Process ID: {processId} has exited."
+                    );
+                    processExitEvent.Signal();
+                };
+            }
+            catch (ArgumentException)
+            {
+                Console.WriteLine(
+                    $"MonitorWindowProcessExit: Unable to find process corresponding to process ID {processId}."
+                );
+            }
+        }
+        Console.WriteLine(
+            "MonitorWindowProcessExit: Waiting for all monitored processes to exit..."
+        );
+        processExitEvent = new CountdownEvent(count);
+        processExitEvent.Wait();
+        Console.WriteLine("MonitorWindowProcessExit: All monitored processes have exited.");
+        Application.Exit();
     }
 
     public static void ToggleWindowState()
@@ -323,6 +367,8 @@ public static class Program
             return;
         }
         WindowManager.InitHwnd(args[1]);
+        Thread monitorThread = new Thread(WindowManager.MonitorWindowProcessExit);
+        monitorThread.Start();
 
         Application.ApplicationExit += OnApplicationExit;
 
