@@ -47,8 +47,8 @@ public static class WindowManager
     }
 
     private static CountdownEvent processExitEvent;
-    public static List<WindowInfo> WindowInfos = new List<WindowInfo>();
-    public static IntPtr PrevHwnd { get; set; }
+    private static List<WindowInfo> WindowInfos = new List<WindowInfo>();
+    private static IntPtr PrevHwnd { get; set; }
     public static string Args1 { get; set; }
 
     static WindowManager()
@@ -150,38 +150,38 @@ public static class WindowManager
         }
     }
 
-    public static void UpdatePrevHwnd()
+    private static void UpdatePrevHwnd()
     {
         PrevHwnd = GetForegroundWindow();
     }
 
-    public static bool IsWindowFocused()
+    private static bool IsWindowFocused()
     {
         IntPtr foregroundWindowHandle = GetForegroundWindow();
         return WindowInfos.Any(wi => wi.Handle == foregroundWindowHandle);
     }
 
-    public static void WinFocus(IntPtr hWnd)
+    private static void WinFocus(IntPtr hWnd)
     {
         SetForegroundWindow(hWnd);
     }
 
-    public static void WinUnFocus()
+    private static void WinUnFocus()
     {
         SetForegroundWindow(PrevHwnd);
     }
 
-    public static void WinHide(IntPtr hWnd)
+    private static void WinHide(IntPtr hWnd)
     {
         ShowWindow(hWnd, SW_HIDE);
     }
 
-    public static void WinShow(IntPtr hWnd)
+    private static void WinShow(IntPtr hWnd)
     {
         ShowWindow(hWnd, SW_SHOW);
     }
 
-    static string GetWindowTitle(IntPtr hWnd)
+    private static string GetWindowTitle(IntPtr hWnd)
     {
         int length = GetWindowTextLength(hWnd);
         if (length == 0)
