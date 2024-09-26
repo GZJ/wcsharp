@@ -15,6 +15,9 @@ public static class WindowManager
     static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
     [DllImport("user32.dll")]
+    static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
@@ -146,6 +149,36 @@ public static class WindowManager
                     WinShow(hwnd);
                     WinFocus(hwnd);
                 }
+            }
+        }
+    }
+
+    public static void ToggleWindow()
+    {
+        bool anyWindowHidden = false;
+
+        foreach (var windowInfo in WindowInfos)
+        {
+            IntPtr hwnd = windowInfo.Handle;
+            if (hwnd != IntPtr.Zero && IsWindowVisible(hwnd))
+            {
+                WinHide(hwnd);
+                anyWindowHidden = true;
+            }
+        }
+
+        if (anyWindowHidden)
+        {
+            return;
+        }
+
+        foreach (var windowInfo in WindowInfos.AsEnumerable().Reverse())
+        {
+            IntPtr hwnd = windowInfo.Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                WinShow(hwnd);
+                WinFocus(hwnd);
             }
         }
     }
@@ -337,7 +370,7 @@ public class TrayIconManager
     {
         if (e.Button == MouseButtons.Left)
         {
-            WindowManager.ToggleWindowState();
+            WindowManager.ToggleWindow();
         }
     }
 
