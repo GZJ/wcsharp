@@ -40,8 +40,14 @@ public static class WindowManager
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
+
     const int SW_SHOW = 5;
+    const int SW_SHOWNORMAL = 1;
     const int SW_HIDE = 0;
+
+    const UInt32 WM_CLOSE = 0x0010;
 
     public class WindowInfo
     {
@@ -183,6 +189,19 @@ public static class WindowManager
         }
     }
 
+    public static void CloseWindows()
+    {
+        foreach (var windowInfo in WindowInfos)
+        {
+            IntPtr hwnd = windowInfo.Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                Console.WriteLine($"closing window: {hwnd}");
+                SendMessage(hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+            }
+        }
+    }
+
     private static void UpdatePrevHwnd()
     {
         PrevHwnd = GetForegroundWindow();
@@ -211,7 +230,7 @@ public static class WindowManager
 
     private static void WinShow(IntPtr hWnd)
     {
-        ShowWindow(hWnd, SW_SHOW);
+        ShowWindow(hWnd, SW_SHOWNORMAL);
     }
 
     private static string GetWindowTitle(IntPtr hWnd)
@@ -363,6 +382,7 @@ public class TrayIconManager
 
     private void OnExit(object sender, EventArgs e)
     {
+        WindowManager.CloseWindows();
         Application.Exit();
     }
 
