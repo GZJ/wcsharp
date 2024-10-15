@@ -6,17 +6,22 @@ class Program
     [DllImport("user32.dll", SetLastError = true)]
     static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
+
     static void Main(string[] args)
     {
+        IntPtr hWnd;
+
         if (args.Length == 0)
         {
-            Console.WriteLine("Usage: wcs-id <window_title>");
-            return;
+            hWnd = GetForegroundWindow();
         }
-
-        string windowTitle = args[0];
-
-        IntPtr hWnd = FindWindow(null, windowTitle);
+        else
+        {
+            string windowTitle = args[0];
+            hWnd = FindWindow(null, windowTitle);
+        }
 
         if (hWnd != IntPtr.Zero)
         {
