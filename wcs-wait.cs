@@ -1,5 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 class Program
@@ -8,13 +10,13 @@ class Program
     static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
-    static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int count);
+    static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
 
     static string GetActiveWindowTitle()
     {
         const int nChars = 256;
         IntPtr handle = GetForegroundWindow();
-        var buff = new System.Text.StringBuilder(nChars);
+        var buff = new StringBuilder(nChars);
 
         if (GetWindowText(handle, buff, nChars) > 0)
         {
@@ -32,18 +34,39 @@ class Program
         }
 
         string targetTitle = args[0];
-        Console.WriteLine($"Waiting for window with title: {targetTitle}");
+        bool useRegex = args.Length > 1 && args[1] == "-r";
+
+        Console.WriteLine(
+            $"Waiting for window with title{(useRegex ? " matching regex" : "")}: {targetTitle}"
+        );
+
+        string currentTitle = null;
 
         while (true)
         {
-            string currentTitle = GetActiveWindowTitle();
+            currentTitle = GetActiveWindowTitle();
 
-            if (currentTitle != null && currentTitle == targetTitle)
+            if (currentTitle != null)
             {
-                break;
+                if (useRegex)
+                {
+                    if (Regex.IsMatch(currentTitle, targetTitle))
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    if (currentTitle == targetTitle)
+                    {
+                        break;
+                    }
+                }
             }
 
             Thread.Sleep(100);
         }
+
+        Console.WriteLine($"Found active window with title: {currentTitle}");
     }
 }
