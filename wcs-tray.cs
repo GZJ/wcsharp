@@ -6,47 +6,35 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
+//-------------------------------- window manager --------------------------------
 public static class WindowManager
 {
-    [DllImport("user32.dll")]
-    static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+    // DLL imports
+    [DllImport("user32.dll")] static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)] static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)] static extern int GetWindowTextLength(IntPtr hWnd);
+    [DllImport("user32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll", SetLastError = true)] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+    [DllImport("user32.dll", CharSet = CharSet.Auto)] static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern IntPtr SetFocus(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern IntPtr SetActiveWindow(IntPtr hWnd);
+    [DllImport("user32.dll", SetLastError = true)] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 
-    [DllImport("user32.dll")]
-    static extern bool IsWindowVisible(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
-
-    [DllImport("user32.dll")]
-    static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-    static extern int GetWindowTextLength(IntPtr hWnd);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool IsWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
-
-    const int SW_SHOW = 5;
+    // Constants
+    public const uint SWP_NOMOVE = 0x0002;
+    public const uint SWP_NOSIZE = 0x0001;
+    public const uint SWP_SHOWWINDOW = 0x0040;
+    public const uint SWP_NOACTIVATE = 0x0010;
+    static readonly IntPtr HWND_TOP = new IntPtr(0);
+    static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
     const int SW_SHOWNORMAL = 1;
     const int SW_HIDE = 0;
-
     const UInt32 WM_CLOSE = 0x0010;
 
     public class WindowInfo
@@ -57,76 +45,84 @@ public static class WindowManager
 
     private static CountdownEvent processExitEvent;
     private static List<WindowInfo> WindowInfos = new List<WindowInfo>();
-    private static IntPtr PrevHwnd { get; set; }
-    public static string Args1 { get; set; }
+    private static IntPtr PrevHwnd;
+    public static string WindowSpecifiers { get; set; }
 
-    static WindowManager()
+    private static void UpdatePrevHwnd() => PrevHwnd = GetForegroundWindow();
+
+    private static bool IsWindowFocused() => 
+        WindowInfos.Any(wi => wi.Handle == GetForegroundWindow());
+
+    private static void WinFocus(IntPtr hWnd) => SetForegroundWindow(hWnd);
+    private static void WinUnFocus() => SetForegroundWindow(PrevHwnd);
+    private static void WinHide(IntPtr hWnd) => ShowWindow(hWnd, SW_HIDE);
+    private static void WinShow(IntPtr hWnd) => ShowWindow(hWnd, SW_SHOWNORMAL);
+
+    private static string GetWindowTitle(IntPtr hWnd)
     {
-        UpdatePrevHwnd();
+        int length = GetWindowTextLength(hWnd);
+        if (length == 0) return string.Empty;
+
+        StringBuilder builder = new StringBuilder(length + 1);
+        GetWindowText(hWnd, builder, builder.Capacity);
+        return builder.ToString();
     }
+
+    static WindowManager() => UpdatePrevHwnd();
 
     public static void InitHwnd(string arg)
     {
-        Args1 = arg;
-        string[] titles = arg.Split(',');
-
-        foreach (string title in titles)
+        WindowSpecifiers = arg;
+        foreach (string title in arg.Split(','))
         {
             if (int.TryParse(title, out int handle))
             {
-                if (IsWindow((IntPtr)handle))
-                {
-                    string t = GetWindowTitle((IntPtr)handle);
-                    WindowInfos.Add(new WindowInfo { Title = t, Handle = (IntPtr)handle });
-                }
-                else
-                {
-                    WindowInfos.Add(new WindowInfo { Title = "", Handle = IntPtr.Zero });
-                }
+                IntPtr hwnd = (IntPtr)handle;
+                WindowInfos.Add(new WindowInfo { 
+                    Title = IsWindow(hwnd) ? GetWindowTitle(hwnd) : "", 
+                    Handle = IsWindow(hwnd) ? hwnd : IntPtr.Zero 
+                });
             }
             else
             {
-                IntPtr hwnd = FindWindow(null, title);
-                WindowInfos.Add(new WindowInfo { Title = title, Handle = hwnd });
+                WindowInfos.Add(new WindowInfo { 
+                    Title = title, 
+                    Handle = FindWindow(null, title) 
+                });
             }
         }
     }
 
     public static void MonitorWindowProcessExit()
     {
-        int count = 0;
+        int count = WindowInfos.Count;
+        processExitEvent = new CountdownEvent(count);
+
         foreach (var wi in WindowInfos)
         {
+            if (wi.Handle == IntPtr.Zero) continue;
+            
             GetWindowThreadProcessId(wi.Handle, out uint processId);
-            Console.WriteLine(
-                $"MonitorWindowProcessExit: Found window with title \"{wi.Title}\", process ID: {processId}"
-            );
-            count += 1;
+            Console.WriteLine($"Monitoring window: \"{wi.Title}\", process ID: {processId}");
+            
             try
             {
                 Process process = Process.GetProcessById((int)processId);
                 process.EnableRaisingEvents = true;
-                process.Exited += (sender, e) =>
-                {
-                    Console.WriteLine(
-                        $"MonitorWindowProcessExit: Process ID: {processId} has exited."
-                    );
+                process.Exited += (sender, e) => {
+                    Console.WriteLine($"Process ID: {processId} has exited");
                     processExitEvent.Signal();
                 };
             }
             catch (ArgumentException)
             {
-                Console.WriteLine(
-                    $"MonitorWindowProcessExit: Unable to find process corresponding to process ID {processId}."
-                );
+                Console.WriteLine($"Cannot find process ID: {processId}");
+                processExitEvent.Signal();
             }
         }
-        Console.WriteLine(
-            "MonitorWindowProcessExit: Waiting for all monitored processes to exit..."
-        );
-        processExitEvent = new CountdownEvent(count);
+        
         processExitEvent.Wait();
-        Console.WriteLine("MonitorWindowProcessExit: All monitored processes have exited.");
+        Console.WriteLine("All monitored processes have exited");
         Application.Exit();
     }
 
@@ -135,116 +131,50 @@ public static class WindowManager
         if (IsWindowFocused())
         {
             WinUnFocus();
-            foreach (var windowInfo in WindowInfos)
-            {
-                IntPtr hwnd = windowInfo.Handle;
-                if (hwnd != IntPtr.Zero)
-                {
-                    WinHide(hwnd);
-                }
-            }
+            foreach (var wi in WindowInfos.Where(w => w.Handle != IntPtr.Zero))
+                WinHide(wi.Handle);
         }
         else
         {
             UpdatePrevHwnd();
-            foreach (var windowInfo in WindowInfos.AsEnumerable().Reverse())
+            foreach (var wi in WindowInfos.AsEnumerable().Reverse().Where(w => w.Handle != IntPtr.Zero))
             {
-                IntPtr hwnd = windowInfo.Handle;
-                if (hwnd != IntPtr.Zero)
-                {
-                    WinShow(hwnd);
-                    WinFocus(hwnd);
-                }
+                WinShow(wi.Handle);
+                SetWindowPos(wi.Handle, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                WinFocus(wi.Handle);
             }
         }
     }
 
     public static void ToggleWindow()
     {
-        bool anyWindowHidden = false;
-
-        foreach (var windowInfo in WindowInfos)
+        if (WindowInfos.Any(wi => wi.Handle != IntPtr.Zero && IsWindowVisible(wi.Handle)))
         {
-            IntPtr hwnd = windowInfo.Handle;
-            if (hwnd != IntPtr.Zero && IsWindowVisible(hwnd))
-            {
-                WinHide(hwnd);
-                anyWindowHidden = true;
-            }
+            foreach (var wi in WindowInfos.Where(w => w.Handle != IntPtr.Zero && IsWindowVisible(w.Handle)))
+                WinHide(wi.Handle);
         }
-
-        if (anyWindowHidden)
+        else
         {
-            return;
-        }
-
-        foreach (var windowInfo in WindowInfos.AsEnumerable().Reverse())
-        {
-            IntPtr hwnd = windowInfo.Handle;
-            if (hwnd != IntPtr.Zero)
+            foreach (var wi in WindowInfos.AsEnumerable().Reverse().Where(w => w.Handle != IntPtr.Zero))
             {
-                WinShow(hwnd);
-                WinFocus(hwnd);
+                WinShow(wi.Handle);
+                WinFocus(wi.Handle);
             }
         }
     }
 
     public static void CloseWindows()
     {
-        foreach (var windowInfo in WindowInfos)
+        foreach (var wi in WindowInfos.Where(w => w.Handle != IntPtr.Zero))
         {
-            IntPtr hwnd = windowInfo.Handle;
-            if (hwnd != IntPtr.Zero)
-            {
-                Console.WriteLine($"closing window: {hwnd}");
-                SendMessage(hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-            }
+            Console.WriteLine($"Closing window: {wi.Handle}");
+            SendMessage(wi.Handle, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
         }
     }
 
-    private static void UpdatePrevHwnd()
-    {
-        PrevHwnd = GetForegroundWindow();
-    }
-
-    private static bool IsWindowFocused()
-    {
-        IntPtr foregroundWindowHandle = GetForegroundWindow();
-        return WindowInfos.Any(wi => wi.Handle == foregroundWindowHandle);
-    }
-
-    private static void WinFocus(IntPtr hWnd)
-    {
-        SetForegroundWindow(hWnd);
-    }
-
-    private static void WinUnFocus()
-    {
-        SetForegroundWindow(PrevHwnd);
-    }
-
-    private static void WinHide(IntPtr hWnd)
-    {
-        ShowWindow(hWnd, SW_HIDE);
-    }
-
-    private static void WinShow(IntPtr hWnd)
-    {
-        ShowWindow(hWnd, SW_SHOWNORMAL);
-    }
-
-    private static string GetWindowTitle(IntPtr hWnd)
-    {
-        int length = GetWindowTextLength(hWnd);
-        if (length == 0)
-            return string.Empty;
-
-        StringBuilder builder = new StringBuilder(length + 1);
-        GetWindowText(hWnd, builder, builder.Capacity);
-        return builder.ToString();
-    }
 }
 
+//-------------------------------- hotkey manager --------------------------------
 public class HotKeyManager : IDisposable
 {
     public const int WM_HOTKEY = 0x0312;
@@ -275,9 +205,7 @@ public class HotKeyManager : IDisposable
         _hotkeyId = hotkeyId;
 
         if (!RegisterHotKey(_windowHandle, _hotkeyId, fsModifiers, vk))
-        {
             throw new InvalidOperationException("Unable to register hotkey.");
-        }
     }
 
     public void Dispose()
@@ -291,9 +219,7 @@ public class HotKeyManager : IDisposable
         if (!_disposed)
         {
             if (disposing)
-            {
                 UnregisterHotKey(_windowHandle, _hotkeyId);
-            }
             _disposed = true;
         }
     }
@@ -308,18 +234,10 @@ public class HotKeyManager : IDisposable
         {
             switch (part.Trim().ToLower())
             {
-                case "ctrl":
-                    modifiers |= (uint)KeyModifiers.Control;
-                    break;
-                case "alt":
-                    modifiers |= (uint)KeyModifiers.Alt;
-                    break;
-                case "shift":
-                    modifiers |= (uint)KeyModifiers.Shift;
-                    break;
-                case "win":
-                    modifiers |= (uint)KeyModifiers.Win;
-                    break;
+                case "ctrl": modifiers |= (uint)KeyModifiers.Control; break;
+                case "alt": modifiers |= (uint)KeyModifiers.Alt; break;
+                case "shift": modifiers |= (uint)KeyModifiers.Shift; break;
+                case "win": modifiers |= (uint)KeyModifiers.Win; break;
                 default:
                     try
                     {
@@ -327,9 +245,7 @@ public class HotKeyManager : IDisposable
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine(
-                            $"Error parsing key part: {part}. Exception: {ex.Message}"
-                        );
+                        Console.WriteLine($"Error parsing key: {part}. Exception: {ex.Message}");
                         return false;
                     }
                     break;
@@ -339,6 +255,7 @@ public class HotKeyManager : IDisposable
     }
 }
 
+//-------------------------------- hotkey hidden window  --------------------------------
 public class HiddenWindow : Form
 {
     private const int HOTKEY_ID = 1;
@@ -352,57 +269,46 @@ public class HiddenWindow : Form
     protected override void WndProc(ref Message m)
     {
         if (m.Msg == HotKeyManager.WM_HOTKEY && m.WParam.ToInt32() == HOTKEY_ID)
-        {
             WindowManager.ToggleWindowState();
-        }
+        
         base.WndProc(ref m);
     }
 }
 
+//-------------------------------- tray manager  --------------------------------
 public class TrayIconManager
 {
     private NotifyIcon trayIcon;
-    private ContextMenu trayMenu;
 
     public TrayIconManager()
     {
-        trayMenu = new ContextMenu();
-        trayMenu.MenuItems.Add("Exit", OnExit);
+        var trayMenu = new ContextMenu();
+        trayMenu.MenuItems.Add("Exit", (s, e) => {
+            WindowManager.CloseWindows();
+            Application.Exit();
+        });
 
         trayIcon = new NotifyIcon
         {
-            Text = WindowManager.Args1,
+            Text = WindowManager.WindowSpecifiers,
             Icon = new Icon(SystemIcons.Application, 40, 40),
             ContextMenu = trayMenu,
             Visible = true
         };
 
-        trayIcon.MouseClick += TrayIcon_MouseClick;
-    }
-
-    private void OnExit(object sender, EventArgs e)
-    {
-        WindowManager.CloseWindows();
-        Application.Exit();
-    }
-
-    private void TrayIcon_MouseClick(object sender, MouseEventArgs e)
-    {
-        if (e.Button == MouseButtons.Left)
-        {
-            WindowManager.ToggleWindow();
-        }
+        trayIcon.MouseClick += (s, e) => {
+            if (e.Button == MouseButtons.Left)
+                WindowManager.ToggleWindow();
+        };
     }
 
     public void Dispose()
     {
-        if (trayIcon != null)
-        {
-            trayIcon.Dispose();
-        }
+        trayIcon?.Dispose();
     }
 }
 
+//-------------------------------- Program  --------------------------------
 public static class Program
 {
     private static HotKeyManager _hotKeyManager;
@@ -414,24 +320,28 @@ public static class Program
     static void Main()
     {
         string[] args = Environment.GetCommandLineArgs();
-        if (args.Length < 2)
+        if (args.Length < 3)
         {
             Console.WriteLine("Usage: wcs-tray <WindowTitle or Hwnd> <HotKey>");
             return;
         }
+
         WindowManager.InitHwnd(args[1]);
+        
         Thread monitorThread = new Thread(WindowManager.MonitorWindowProcessExit);
         monitorThread.Start();
 
-        Application.ApplicationExit += OnApplicationExit;
+        Application.ApplicationExit += (s, e) => {
+            Console.WriteLine("Application is exiting. Cleaning up...");
+            _hotKeyManager?.Dispose();
+            _trayIconManager?.Dispose();
+        };
 
         _trayIconManager = new TrayIconManager();
         _hiddenWindow = new HiddenWindow();
 
         if (HotKeyManager.TryParseHotKey(args[2], out uint modifiers, out uint key))
-        {
             _hotKeyManager = new HotKeyManager(_hiddenWindow.Handle, HOTKEY_ID, modifiers, key);
-        }
         else
         {
             Console.WriteLine("Invalid hotkey format. Use format like 'Ctrl+Alt+X'.");
@@ -439,13 +349,5 @@ public static class Program
         }
 
         Application.Run();
-    }
-
-    private static void OnApplicationExit(object sender, EventArgs e)
-    {
-        Console.WriteLine("Application is exiting. Cleaning up...");
-
-        _hotKeyManager.Dispose();
-        _trayIconManager.Dispose();
     }
 }
