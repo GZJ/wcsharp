@@ -288,9 +288,16 @@ public class TrayIconManager
             Application.Exit();
         });
 
+        string tooltipText = WindowManager.WindowSpecifiers ?? string.Empty;
+        if (tooltipText.Length > 63)
+        {
+            tooltipText = tooltipText.Substring(0, 63);
+            Console.WriteLine("Warning: Tray icon tooltip text truncated to 63 characters.");
+        }
+
         trayIcon = new NotifyIcon
         {
-            Text = WindowManager.WindowSpecifiers,
+            Text = tooltipText,
             Icon = new Icon(SystemIcons.Application, 40, 40),
             ContextMenu = trayMenu,
             Visible = true
