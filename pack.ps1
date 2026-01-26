@@ -1,6 +1,6 @@
 param(
     [string]$BinDir = (Join-Path $PSScriptRoot 'bin'),
-    [string]$OutputZip = (Join-Path $PSScriptRoot 'wcsharp-tools.zip')
+    [string]$OutputZip = (Join-Path $PSScriptRoot 'wcsharp.zip')
 )
 
 if (-not (Test-Path $BinDir)) {
