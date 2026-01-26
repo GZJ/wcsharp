@@ -1,0 +1,21 @@
+# Build output
+bin/
+*.exe
+*.dll
+*.pdb
+
+# Package output
+*.zip
+
+# Visual Studio / C# artifacts
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+.vs/
+obj/
+
+# OS files
+Thumbs.db
+.DS_Store
