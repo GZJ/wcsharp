@@ -13,9 +13,9 @@ foreach ($f in $csFiles) {
     # Check if the file requires System.Windows.Forms
     $content = Get-Content $f.FullName -Raw
     if ($content -match 'System\.Windows\.Forms') {
-        csc /out:$outputPath /r:System.Windows.Forms.dll /r:System.Drawing.dll $f.FullName
+        csc /nologo /out:$outputPath /r:System.Windows.Forms.dll /r:System.Drawing.dll $f.FullName
     } else {
-        csc /out:$outputPath $f.FullName
+        csc /nologo /out:$outputPath $f.FullName
     }
 }
 
