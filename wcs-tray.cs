@@ -326,6 +326,8 @@ public static class Program
     [STAThread]
     static void Main()
     {
+        Environment.CurrentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+
         string[] args = Environment.GetCommandLineArgs();
         if (args.Length < 3)
         {
